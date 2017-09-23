@@ -5,7 +5,7 @@ Scaled down version of this: https://github.com/mcatovic/Automated_NHL_Goal_Ligh
 
 import requests
 import json
-
+import time
 api_url = 'http://live.nhle.com/GameData/RegularSeasonScoreboardv3.jsonp?loadScoreboard=jQuery110105207217424176633_1428694268811&_=1428694268812'
 
 def get_scores(team=None, printout=True, current_only=False):
@@ -43,7 +43,7 @@ def get_scores(team=None, printout=True, current_only=False):
             game_result['Home Team'] = game['htn']
             game_result['Home Goals'] = game['hts']
 
-            if current_only and game_Result['Status'] != 'Live':
+            if current_only and game_result['Status'] != 'LIVE':
                 pass
             else:
                 results.append(game_result)   
@@ -65,13 +65,19 @@ class GameSession():
     Game session class used to store non-changing game data.
     """
     def __init__(self, team):
+        print "Game Session started!"
+        self.team = team
         self.team_type = ''
         self.live = False
+        self.current_goal_count = 1
 
         while not self.live:
-            data = get_scores(team=team, printout=False, current_only=True)
-            if data:
+            print "Waiting for game to start..."
+            data = get_scores(team=team, printout=True)[0]
+            if data['Status'] == 'LIVE':
+                print "Game On!"
                 self.live = True
+            time.sleep(5)    
 
         if team in data['Home Team']:
             self.team_type = 'Home'
@@ -87,18 +93,21 @@ class GameSession():
         Check if current goal count has increased.  
         Do something special if it has.
         """
+        print "Updating...."
+
         if self.live:
             data = get_scores(team=self.team, printout=False, current_only=True)
+            
             if data:
-                goals = data['%s Goals'][0]
-                if goals > previous_goals:
+                goals = data[0]['%s Goals' % self.team_type][0]                
+                if goals > self.current_goal_count:
                     print 'GOOOOAAAALLLLL!!!'
                 else:
                     print goals
-                previous_goals = goals
+                self.current_goal_count = goals
                 time.sleep(5)
             else:
                 print 'Game Over!'
                 self.live = False
 
-GS = GameSession('Vancouver')            
+GS = GameSession('Colorado')            
