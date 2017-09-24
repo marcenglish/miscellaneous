@@ -20,6 +20,7 @@ def get_scores(team=None, printout=True, current_only=False):
     """
     r = False
     results = []
+    data = {}
     while not r:
         try:
             r = requests.get(api_url) #making sure there is a connection with the API
@@ -29,35 +30,42 @@ def get_scores(team=None, printout=True, current_only=False):
             continue
 
     text = r.text.replace('loadScoreboard(', '').replace(')','')
-    data = json.loads(text)
-    
-    for game in data['games']:
-        if team and team not in [game['atn'], game['htn']]:
-            pass
-        else:
-            game_result = {}
-            game_result['Date'] = game['ts']
-            game_result['Status'] = game['bs']
-            game_result['Away Team'] = game['atn']
-            game_result['Away Goals'] = game['ats']
-            game_result['Home Team'] = game['htn']
-            game_result['Home Goals'] = game['hts']
+    # print text
+    try:
+        data = json.loads(text)
+    except:
+        print data
+        print "Could not parse json data, trying again.."
+        results.append('invalid')
 
-            if current_only and game_result['Status'] != 'LIVE':
+    if data:
+        for game in data['games']:
+            if team and team not in [game['atn'], game['htn']]:
                 pass
             else:
-                results.append(game_result)   
-            
-            if printout:
-                print 'Date ', game_result['Date']
-                print game_result['Status']
-                print 'Away Team: ',game_result['Away Team']
-                print game_result['Away Goals']
-                print 'Home Team: ',game_result['Home Team']
-                print game_result['Home Goals']                
-                print ' --------------------'
+                game_result = {}
+                game_result['Date'] = game['ts']
+                game_result['Status'] = game['bs']
+                game_result['Away Team'] = game['atn']
+                game_result['Away Goals'] = game['ats']
+                game_result['Home Team'] = game['htn']
+                game_result['Home Goals'] = game['hts']
 
-    
+                if current_only and game_result['Status'] != 'LIVE':
+                    pass
+                else:
+                    results.append(game_result)   
+                
+                if printout:
+                    print 'Date ', game_result['Date']
+                    print game_result['Status']
+                    print 'Away Team: ',game_result['Away Team']
+                    print game_result['Away Goals']
+                    print 'Home Team: ',game_result['Home Team']
+                    print game_result['Home Goals']                
+                    print ' --------------------'
+
+        
     return results
 
 class GameSession():
@@ -85,10 +93,10 @@ class GameSession():
             self.team_type = 'Away'
 
         while self.live:
-            self.announce_goal()
+            self.check_for_goal()
             
 
-    def announce_goal(self, interval=5):
+    def check_for_goal(self, interval=5):
         """
         Check if current goal count has increased.  
         Do something special if it has.
@@ -97,17 +105,20 @@ class GameSession():
 
         if self.live:
             data = get_scores(team=self.team, printout=False, current_only=True)
-            
-            if data:
-                goals = data[0]['%s Goals' % self.team_type][0]                
-                if goals > self.current_goal_count:
-                    print 'GOOOOAAAALLLLL!!!'
-                else:
-                    print goals
-                self.current_goal_count = goals
-                time.sleep(5)
+
+            if data[0] == 'invalid':
+                pass
             else:
-                print 'Game Over!'
-                self.live = False
+                if data:
+                    goals = data[0]['%s Goals' % self.team_type][0]                
+                    if goals > self.current_goal_count:
+                        print 'GOOOOAAAALLLLL!!!'
+                    else:
+                        print goals
+                    self.current_goal_count = goals
+                    time.sleep(5)
+                else:
+                    print 'Game Over!'
+                    self.live = False
 
 GS = GameSession('Colorado')            
